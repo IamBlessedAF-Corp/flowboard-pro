@@ -7,8 +7,13 @@ import { KanbanColumn } from "@/components/kanban/KanbanColumn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Plus, ArrowLeft, Tags } from "lucide-react";
+import { Plus, ArrowLeft, Tags, Users } from "lucide-react";
 import { LabelManager } from "@/components/kanban/LabelManager";
+import { MemberManager } from "@/components/kanban/MemberManager";
+import { BoardPresence } from "@/components/kanban/BoardPresence";
+import { useBoardRealtime } from "@/hooks/use-board-realtime";
+import { useBoardPresence } from "@/hooks/use-board-presence";
+import { useBoardRole } from "@/hooks/use-board-role";
 import {
   DndContext,
   closestCorners,
@@ -36,6 +41,12 @@ export default function BoardView() {
   const [newListTitle, setNewListTitle] = useState("");
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
+
+  // Phase 3 hooks
+  useBoardRealtime(boardId);
+  const onlineUsers = useBoardPresence(boardId);
+  const { isAdmin } = useBoardRole(boardId);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -106,16 +117,11 @@ export default function BoardView() {
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) return;
-
     const activeType = active.data.current?.type;
     const overType = over.data.current?.type;
-
     if (activeType !== "card") return;
-
-    // Moving card over another card or over a column
     const activeListId = active.data.current?.card.list_id;
     let overListId: string;
-
     if (overType === "card") {
       overListId = over.data.current?.card.list_id;
     } else if (overType === "column") {
@@ -123,10 +129,7 @@ export default function BoardView() {
     } else {
       return;
     }
-
     if (activeListId === overListId) return;
-
-    // Optimistically move card to new list
     queryClient.setQueryData(["cards", boardId], (old: Card[] | undefined) => {
       if (!old) return old;
       return old.map((c) => (c.id === active.id ? { ...c, list_id: overListId } : c));
@@ -137,19 +140,13 @@ export default function BoardView() {
     setActiveCard(null);
     const { active, over } = event;
     if (!over) return;
-
     const activeType = active.data.current?.type;
-
     if (activeType === "column") {
-      // Reorder lists
       const oldIndex = lists.findIndex((l) => l.id === active.id);
       const newIndex = lists.findIndex((l) => l.id === over.id);
       if (oldIndex === newIndex) return;
-
       const reordered = arrayMove(lists, oldIndex, newIndex);
       queryClient.setQueryData(["lists", boardId], reordered);
-
-      // Persist
       await Promise.all(
         reordered.map((l, i) => supabase.from("lists").update({ position: i }).eq("id", l.id))
       );
@@ -158,31 +155,24 @@ export default function BoardView() {
       const card = active.data.current?.card as Card;
       const overType = over.data.current?.type;
       let targetListId = card.list_id;
-
-      // Get current cards state from cache
       const currentCards = queryClient.getQueryData<Card[]>(["cards", boardId]) ?? [];
       const updatedCard = currentCards.find((c) => c.id === card.id);
       if (updatedCard) targetListId = updatedCard.list_id;
-
       const listCards = currentCards.filter((c) => c.list_id === targetListId);
       const oldIndex = listCards.findIndex((c) => c.id === active.id);
       let newIndex = oldIndex;
-
       if (overType === "card") {
         newIndex = listCards.findIndex((c) => c.id === over.id);
       }
-
       if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
         const reordered = arrayMove(listCards, oldIndex, newIndex);
         await Promise.all(
           reordered.map((c, i) => supabase.from("cards").update({ position: i, list_id: targetListId }).eq("id", c.id))
         );
       } else {
-        // Just update list_id and position
         const pos = listCards.length > 0 ? Math.max(...listCards.map((c) => c.position)) + 1 : 0;
         await supabase.from("cards").update({ list_id: targetListId, position: pos }).eq("id", card.id);
       }
-
       queryClient.invalidateQueries({ queryKey: ["cards", boardId] });
     }
   };
@@ -195,12 +185,23 @@ export default function BoardView() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-lg font-semibold">{board?.title ?? "Board"}</h1>
+
+        <div className="flex-1" />
+
+        {/* Presence indicators */}
+        <BoardPresence onlineUsers={onlineUsers} />
+
+        {/* Board actions */}
         <Button variant="outline" size="sm" onClick={() => setLabelsOpen(true)}>
           <Tags className="mr-1 h-3.5 w-3.5" /> Labels
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setMembersOpen(true)}>
+          <Users className="mr-1 h-3.5 w-3.5" /> Members
         </Button>
       </div>
 
       <LabelManager boardId={boardId!} open={labelsOpen} onOpenChange={setLabelsOpen} />
+      <MemberManager boardId={boardId!} open={membersOpen} onOpenChange={setMembersOpen} isAdmin={isAdmin} />
 
       <div className="flex-1 overflow-x-auto p-6">
         <DndContext
@@ -213,7 +214,7 @@ export default function BoardView() {
           <div className="flex gap-4">
             <SortableContext items={lists.map((l) => l.id)} strategy={horizontalListSortingStrategy}>
               {lists.map((list) => (
-                <KanbanColumn key={list.id} list={list} cards={cardsByList[list.id] ?? []} boardId={boardId!} />
+                <KanbanColumn key={list.id} list={list} cards={cardsByList[list.id] ?? []} boardId={boardId!} isAdmin={isAdmin} />
               ))}
             </SortableContext>
 

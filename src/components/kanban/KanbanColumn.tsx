@@ -17,9 +17,10 @@ interface KanbanColumnProps {
   list: Tables<"lists">;
   cards: Tables<"cards">[];
   boardId: string;
+  isAdmin?: boolean;
 }
 
-export function KanbanColumn({ list, cards, boardId }: KanbanColumnProps) {
+export function KanbanColumn({ list, cards, boardId, isAdmin = true }: KanbanColumnProps) {
   const queryClient = useQueryClient();
   const [addingCard, setAddingCard] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState("");
@@ -105,9 +106,11 @@ export function KanbanColumn({ list, cards, boardId }: KanbanColumnProps) {
               <DropdownMenuItem onClick={() => { setEditing(true); setEditTitle(list.title); }}>
                 <Pencil className="mr-2 h-3.5 w-3.5" /> Rename
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive" onClick={() => deleteList.mutate()}>
-                <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
-              </DropdownMenuItem>
+              {isAdmin && (
+                <DropdownMenuItem className="text-destructive" onClick={() => deleteList.mutate()}>
+                  <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
