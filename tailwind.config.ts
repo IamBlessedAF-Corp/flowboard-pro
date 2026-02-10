@@ -57,6 +57,9 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        kanban: {
+          column: "hsl(var(--kanban-column))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
