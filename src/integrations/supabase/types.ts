@@ -310,6 +310,7 @@ export type Database = {
         Args: { _board_id: string; _user_id: string }
         Returns: boolean
       }
+      test_auth_uid: { Args: never; Returns: string }
     }
     Enums: {
       app_role: "admin" | "user"
