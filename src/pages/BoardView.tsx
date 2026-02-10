@@ -7,7 +7,8 @@ import { KanbanColumn } from "@/components/kanban/KanbanColumn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Plus, ArrowLeft } from "lucide-react";
+import { Plus, ArrowLeft, Tags } from "lucide-react";
+import { LabelManager } from "@/components/kanban/LabelManager";
 import {
   DndContext,
   closestCorners,
@@ -34,6 +35,7 @@ export default function BoardView() {
   const [addingList, setAddingList] = useState(false);
   const [newListTitle, setNewListTitle] = useState("");
   const [activeCard, setActiveCard] = useState<Card | null>(null);
+  const [labelsOpen, setLabelsOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -193,7 +195,12 @@ export default function BoardView() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-lg font-semibold">{board?.title ?? "Board"}</h1>
+        <Button variant="outline" size="sm" onClick={() => setLabelsOpen(true)}>
+          <Tags className="mr-1 h-3.5 w-3.5" /> Labels
+        </Button>
       </div>
+
+      <LabelManager boardId={boardId!} open={labelsOpen} onOpenChange={setLabelsOpen} />
 
       <div className="flex-1 overflow-x-auto p-6">
         <DndContext
