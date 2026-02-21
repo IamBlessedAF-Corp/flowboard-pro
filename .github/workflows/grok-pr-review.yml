@@ -31,3 +31,4 @@ jobs:
         with:
           body: ${{ steps.grok.outputs.review }}
 Add Grok PR Review workflow
+Grok will now automatically review every PR
