@@ -1,1 +1,32 @@
 .github/workflows/grok-pr-review.yml
+name: Grok PR Review (IamBlessedAF)
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Call Grok xAI
+        id: grok
+        run: |
+          response=$(curl -s -X POST https://api.x.ai/v1/chat/completions \
+            -H "Authorization: Bearer ${{ secrets.GROK_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "model": "grok-4",
+              "messages": [{
+                "role": "user",
+                "content": "Review this PR for IamBlessedAF podcast pitching, K-factor, Day 1 sequence, and STEPPS alignment. Focus on virality and user flow. PR diff: ${{ github.event.pull_request.diff_url }}"
+              }]
+            }')
+          echo "review=$(echo $response | jq -r '.choices[0].message.content')" >> $GITHUB_OUTPUT
+
+      - name: Post Grok Review
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          body: ${{ steps.grok.outputs.review }}
